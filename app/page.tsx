@@ -38,27 +38,57 @@ export default function Home() {
   const [animDir, setAnimDir] = useState<"left" | "right" | null>(null);
   const [showLikes, setShowLikes] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState("J-POP");
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [page, setPage] = useState(0);
   const startXRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const indexRef = useRef(0);
+  const songsRef = useRef<Song[]>([]);
 
-  useEffect(() => { fetchSongs("J-POP"); }, []);
+  useEffect(() => { fetchSongs("J-POP", 0, true); }, []);
 
-  const fetchSongs = async (genre: string) => {
-    setLoading(true); setIndex(0);
-    audioRef.current?.pause(); setPlaying(false);
+  // 残り2曲になったら自動で次を読み込む
+  useEffect(() => {
+    indexRef.current = index;
+    songsRef.current = songs;
+    if (songs.length > 0 && songs.length - index <= 2 && !loadingMore) {
+      loadMore();
+    }
+  }, [index, songs]);
+
+  const fetchSongs = async (genre: string, p: number, reset: boolean) => {
+    if (reset) setLoading(true);
     try {
-      const res = await fetch(`/api/music?genre=${encodeURIComponent(genre)}`);
+      const res = await fetch(`/api/music?genre=${encodeURIComponent(genre)}&page=${p}`);
       const data = await res.json();
-      setSongs(data.songs);
+      if (reset) {
+        setSongs(data.songs);
+        setIndex(0);
+      } else {
+        setSongs(prev => [...prev, ...data.songs]);
+      }
     } catch { console.error("取得失敗"); }
     setLoading(false);
+    setLoadingMore(false);
   };
 
-  const handleGenreChange = (genre: string) => { setSelectedGenre(genre); fetchSongs(genre); };
+  const loadMore = async () => {
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await fetchSongs(selectedGenre, nextPage, false);
+  };
+
+  const handleGenreChange = (genre: string) => {
+    setSelectedGenre(genre);
+    setPage(0);
+    fetchSongs(genre, 0, true);
+  };
+
   const current = songs[index];
 
   const togglePlay = () => {
@@ -72,7 +102,8 @@ export default function Home() {
     setAnimDir(dir); setDragX(0);
     setTimeout(() => {
       if (dir === "right") setLikes(prev => [...prev, songs[index]]);
-      setIndex(prev => prev + 1); setAnimDir(null);
+      setIndex(prev => prev + 1);
+      setAnimDir(null);
     }, 450);
   };
 
@@ -99,8 +130,7 @@ export default function Home() {
 
       {/* ヘッダー */}
       <div style={{ width: "100%", maxWidth: 440, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 0 0.75rem" }}>
-        {/* ロゴ: グラデーションをborderで表現してバグ回避 */}
-        <div style={{ fontSize: "1.5rem", fontWeight: 900, letterSpacing: -1, position: "relative" }}>
+        <div style={{ fontSize: "1.5rem", fontWeight: 900, letterSpacing: -1 }}>
           <span style={{ color: c1 }}>tune</span><span style={{ color: c2 }}>match</span>
         </div>
         <button onClick={() => setShowLikes(!showLikes)} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "#f0ece0", padding: "0.45rem 1.1rem", borderRadius: 20, cursor: "pointer", fontSize: "0.85rem" }}>
@@ -129,7 +159,7 @@ export default function Home() {
       {/* お気に入りリスト */}
       {showLikes && (
         <div style={{ width: "100%", maxWidth: 440, background: "#141414", borderRadius: 20, padding: "1.25rem", marginBottom: "1rem", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ fontSize: "0.8rem", color: "#666", marginBottom: "0.75rem", letterSpacing: "0.1em" }}>お気に入り</div>
+          <div style={{ fontSize: "0.8rem", color: "#666", marginBottom: "0.75rem" }}>お気に入り</div>
           {likes.length === 0 ? (
             <div style={{ color: "#444", fontSize: "0.875rem" }}>右スワイプで追加！</div>
           ) : likes.map((s) => (
@@ -198,19 +228,12 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div style={{ marginTop: "1rem", fontSize: "0.75rem", color: "#444" }}>残り {songs.length - index} 曲</div>
-        </>
-      )}
 
-      {!loading && songs.length > 0 && index >= songs.length && (
-        <div style={{ textAlign: "center", padding: "4rem 1rem" }}>
-          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🎶</div>
-          <div style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "0.5rem" }}>今日の音楽は以上！</div>
-          <div style={{ color: "#666", marginBottom: "2rem" }}>お気に入り {likes.length}曲</div>
-          <button onClick={() => fetchSongs(selectedGenre)} style={{ background: `linear-gradient(135deg,${c1},${c2})`, color: "#fff", border: "none", padding: "0.9rem 2.5rem", borderRadius: 30, fontWeight: 700, fontSize: "1rem", cursor: "pointer" }}>
-            新しい曲を探す
-          </button>
-        </div>
+          <div style={{ marginTop: "1rem", fontSize: "0.75rem", color: "#444", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {loadingMore && <span>🎵</span>}
+            
+          </div>
+        </>
       )}
     </main>
   );
