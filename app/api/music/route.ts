@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
 const GENRE_MAP: Record<string, string> = {
-  "J-POP": "jpop",
-  "ヒップホップ": "japanese hip hop",
-  "K-POP": "kpop",
-  "女性アイドル": "japanese female idol",
-  "男性アイドル": "japanese male idol",
-  "ロック": "japanese rock",
-  "アニソン": "anime",
+  "J-POP":    "jpop 日本",
+  "Hip Hop":  "日本語ラップ hiphop",
+  "K-POP":    "kpop korea",
+  "女性アイドル": "AKB48 乃木坂46 日向坂",
+  "男性アイドル": "Hey!SayJUMP SixTONES Snow Man",
+  "ロック":    "日本 rock バンド",
+  "アニソン":  "アニメ ソング anime",
 };
 
 export async function GET(request: Request) {
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=20&country=JP`
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=25&country=JP`
     );
     const data = await res.json();
 
